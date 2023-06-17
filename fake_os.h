@@ -26,6 +26,10 @@ typedef struct FakeOS{
   ListHead processes; //All'interno vi sono tutti i processi. Li carico tutti e poi controllo l'arrival time per crearli ecc
 } FakeOS;
 
+//Ho aggiunto un parametro per il numero di core
 void FakeOS_init(FakeOS* os, int num_cores);
+
 void FakeOS_simStep(FakeOS* os); //Incrementa di uno il timer e in base allo scheduling farà delle cose
 void FakeOS_destroy(FakeOS* os);
+int allRunningNull(FakeOS* os); // Funzione per verificare se tutti gli elementi di os->running sono NULL
+int oneRunningNull(FakeOS* os); // Funzione per verificare se almeno un elemento di os->running è NULL

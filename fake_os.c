@@ -5,8 +5,10 @@
 #include "fake_os.h"
 
 void FakeOS_init(FakeOS* os,int num_cores) {
+  //Alloco i core
   os->running = (FakePCB**)malloc(num_cores * sizeof(FakePCB*));
   for (int i = 0; i < num_cores; i++) {
+    //Inizialmente nessun processo è in esecuzione
     os->running[i] = NULL;
   }
   os->num_cores = num_cores;
@@ -23,6 +25,7 @@ void FakeOS_createProcess(FakeOS* os, FakeProcess* p) {
   assert(p->arrival_time==os->timer && "time mismatch in creation");
   // we check that in the list of PCBs there is no
   // pcb having the same pid
+  // check su processi nei core
   for (int i=0;i<os->num_cores;i++){
     assert((!os->running[i] || os->running[i]->pid!=p->pid) && "pid taken");
   }
@@ -47,6 +50,7 @@ void FakeOS_createProcess(FakeOS* os, FakeProcess* p) {
   new_pcb->list.next=new_pcb->list.prev=0;
   new_pcb->pid=p->pid;
   new_pcb->events=p->events;
+  //Iniziamente a nessun processo è assegnato un core
   new_pcb->core=-1;
 
   assert(new_pcb->events.first && "process without events");
@@ -100,6 +104,7 @@ void FakeOS_simStep(FakeOS* os){
     FakePCB* pcb=(FakePCB*)aux;
     aux=aux->next;
     ProcessEvent* e=(ProcessEvent*) pcb->events.first;
+    //Mostro in quale core è in waiting
     printf("\twaiting pid: %d in core %d\n", pcb->pid,pcb->core);
     assert(e->type==IO);
     e->duration--; 
@@ -134,6 +139,7 @@ void FakeOS_simStep(FakeOS* os){
   // if event over, destroy event
   // and reschedule process
   // if last event, destroy running
+  // Esecuzione svolta in ogni core
   for (int i = 0; i < os->num_cores; i++) {
     FakePCB* running = os->running[i];
     printf("\trunning pid: %d in core %d\n", running?running->pid:-1,running?running->core:i);
@@ -146,9 +152,11 @@ void FakeOS_simStep(FakeOS* os){
         printf("\t\tend burst\n");
         List_popFront(&running->events);
         free(e);
+        //In questo core non vi è più nessun processo in running
         os->running[i]=NULL;
         if (!running->events.first){
           printf("\t\tend process\n");
+          //Eliminato il processo
           free(running);
         }
         else{
@@ -168,10 +176,29 @@ void FakeOS_simStep(FakeOS* os){
     }
   }
   // call schedule, if defined
-  if (os->schedule_fn ){
+  //verifica che ci siano prima core disponibili e processi in ready
+  if (os->schedule_fn && os->ready.first && !oneRunningNull(os) ){
     (*os->schedule_fn)(os, os->schedule_args); 
   }
   ++os->timer;
+}
+
+// Funzione per verificare se tutti gli elementi di os->running sono NULL
+int allRunningNull(FakeOS* os) {
+  for (int i = 0; i < os->num_cores; i++) {
+    if (os->running[i] != NULL) {
+      return 0;  // Non tutti gli elementi sono NULL
+    }
+  }
+  return 1;  // Tutti gli elementi sono NULL
+}
+int oneRunningNull(FakeOS* os){
+  for (int i = 0; i < os->num_cores; i++) {
+    if (os->running[i] == NULL) {
+      return 0;  // Non tutti gli elementi sono NULL
+    }
+  }
+  return 1;  // Tutti gli elementi sono NULL
 }
 
 void FakeOS_destroy(FakeOS* os) {
