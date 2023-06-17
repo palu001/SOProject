@@ -6,6 +6,7 @@
 typedef struct {
   ListItem list;
   int pid;
+  int core; //Non necessario in quanto mi basta l'indice dell'array
   ListHead events;
 } FakePCB;
 
@@ -14,7 +15,8 @@ struct FakeOS;
 typedef void (*ScheduleFn)(struct FakeOS* os, void* args); //è questa
 
 typedef struct FakeOS{
-  FakePCB* running; //Un solo PCB
+  FakePCB** running; // Array di PCB in esecuzione per ogni core
+  int num_cores; // Numero di core
   ListHead ready;
   ListHead waiting;
   int timer;
@@ -24,6 +26,6 @@ typedef struct FakeOS{
   ListHead processes; //All'interno vi sono tutti i processi. Li carico tutti e poi controllo l'arrival time per crearli ecc
 } FakeOS;
 
-void FakeOS_init(FakeOS* os);
+void FakeOS_init(FakeOS* os, int num_cores);
 void FakeOS_simStep(FakeOS* os); //Incrementa di uno il timer e in base allo scheduling farà delle cose
 void FakeOS_destroy(FakeOS* os);

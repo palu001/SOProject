@@ -4,8 +4,12 @@
 
 #include "fake_os.h"
 
-void FakeOS_init(FakeOS* os) {
-  os->running=0;
+void FakeOS_init(FakeOS* os,int num_cores) {
+  os->running = (FakePCB**)malloc(num_cores * sizeof(FakePCB*));
+  for (int i = 0; i < num_cores; i++) {
+    os->running[i] = NULL;
+  }
+  os->num_cores = num_cores;
   List_init(&os->ready);
   List_init(&os->waiting);
   List_init(&os->processes);
@@ -19,7 +23,10 @@ void FakeOS_createProcess(FakeOS* os, FakeProcess* p) {
   assert(p->arrival_time==os->timer && "time mismatch in creation");
   // we check that in the list of PCBs there is no
   // pcb having the same pid
-  assert( (!os->running || os->running->pid!=p->pid) && "pid taken");
+  for (int i=0;i<os->num_cores;i++){
+    assert((!os->running[i] || os->running[i]->pid!=p->pid) && "pid taken");
+  }
+  
 
   ListItem* aux=os->ready.first;
   while(aux){
@@ -34,12 +41,13 @@ void FakeOS_createProcess(FakeOS* os, FakeProcess* p) {
     assert(pcb->pid!=p->pid && "pid taken");
     aux=aux->next;
   }
-
+  
   // all fine, no such pcb exists
   FakePCB* new_pcb=(FakePCB*) malloc(sizeof(FakePCB));
   new_pcb->list.next=new_pcb->list.prev=0;
   new_pcb->pid=p->pid;
   new_pcb->events=p->events;
+  new_pcb->core=-1;
 
   assert(new_pcb->events.first && "process without events");
 
@@ -92,7 +100,7 @@ void FakeOS_simStep(FakeOS* os){
     FakePCB* pcb=(FakePCB*)aux;
     aux=aux->next;
     ProcessEvent* e=(ProcessEvent*) pcb->events.first;
-    printf("\twaiting pid: %d\n", pcb->pid);
+    printf("\twaiting pid: %d in core %d\n", pcb->pid,pcb->core);
     assert(e->type==IO);
     e->duration--; 
     printf("\t\tremaining time:%d\n",e->duration);
@@ -122,57 +130,48 @@ void FakeOS_simStep(FakeOS* os){
     }
   }
 
-  
-
   // decrement the duration of running
   // if event over, destroy event
   // and reschedule process
   // if last event, destroy running
-  FakePCB* running=os->running;
-  printf("\trunning pid: %d\n", running?running->pid:-1);
-  if (running) {
-    ProcessEvent* e=(ProcessEvent*) running->events.first;
-    assert(e->type==CPU);
-    e->duration--;
-    printf("\t\tremaining time:%d\n",e->duration);
-    if (e->duration==0){
-      printf("\t\tend burst\n");
-      List_popFront(&running->events);
-      free(e);
-      if (! running->events.first) {
-        printf("\t\tend process\n");
-        free(running); // kill process
-      } else {
-        e=(ProcessEvent*) running->events.first;
-        switch (e->type){
-        case CPU:
-          printf("\t\tmove to ready\n");
-          List_pushBack(&os->ready, (ListItem*) running);
-          break;
-        case IO:
-          printf("\t\tmove to waiting\n");
-          List_pushBack(&os->waiting, (ListItem*) running);
-          break;
+  for (int i = 0; i < os->num_cores; i++) {
+    FakePCB* running = os->running[i];
+    printf("\trunning pid: %d in core %d\n", running?running->pid:-1,running?running->core:i);
+    if (running){
+      ProcessEvent* e=(ProcessEvent*) running->events.first;
+      assert(e->type==CPU);
+      e->duration--;
+      printf("\t\tremaining time:%d\n",e->duration);
+      if (e->duration==0){
+        printf("\t\tend burst\n");
+        List_popFront(&running->events);
+        free(e);
+        os->running[i]=NULL;
+        if (!running->events.first){
+          printf("\t\tend process\n");
+          free(running);
+        }
+        else{
+          e=(ProcessEvent*) running->events.first;
+          switch (e->type){
+            case CPU:
+              printf("\t\tmove to ready\n");
+              List_pushBack(&os->ready, (ListItem*) running);
+              break;
+            case IO:
+              printf("\t\tmove to waiting\n");
+              List_pushBack(&os->waiting, (ListItem*) running);
+              break;
+          }
         }
       }
-      os->running = 0;
     }
   }
-
-
   // call schedule, if defined
-  if (os->schedule_fn && ! os->running){
+  if (os->schedule_fn ){
     (*os->schedule_fn)(os, os->schedule_args); 
   }
-  //Si tratta di FIFO. Viene eseguito anche con RR in questo momento.
-  // if running not defined and ready queue not empty
-  // put the first in ready to run
-  if (! os->running && os->ready.first) {
-    os->running=(FakePCB*) List_popFront(&os->ready);
-  }
-
   ++os->timer;
-
 }
 
 void FakeOS_destroy(FakeOS* os) {
