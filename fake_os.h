@@ -2,6 +2,18 @@
 #include "linked_list.h"
 #pragma once
 
+typedef struct {
+  int quantum;
+  float alpha;
+  float* burst_predictions; //Previsioni di durata dei burst di CPU per ogni processo
+  int* burst_effective;
+} SchedPSJFArgs;
+
+typedef struct {
+  int quantum;
+} SchedRRArgs;
+
+
 //Simile a FakeProcess
 typedef struct {
   ListItem list;
@@ -22,7 +34,7 @@ typedef struct FakeOS{
   int timer;
   ScheduleFn schedule_fn; //Si scrive qui la funzione dello scheduling
   void* schedule_args;
-
+  int has_schedule_sjf;
   ListHead processes; //All'interno vi sono tutti i processi. Li carico tutti e poi controllo l'arrival time per crearli ecc
 } FakeOS;
 

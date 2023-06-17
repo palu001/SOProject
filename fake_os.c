@@ -147,6 +147,12 @@ void FakeOS_simStep(FakeOS* os){
       ProcessEvent* e=(ProcessEvent*) running->events.first;
       assert(e->type==CPU);
       e->duration--;
+
+      if (os->has_schedule_sjf){
+        SchedPSJFArgs* args = (SchedPSJFArgs*)os->schedule_args;
+        args->burst_effective[running->pid-1]+=1;
+
+      }
       printf("\t\tremaining time:%d\n",e->duration);
       if (e->duration==0){
         printf("\t\tend burst\n");
