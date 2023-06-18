@@ -2,6 +2,7 @@
 #include "linked_list.h"
 #pragma once
 
+//Ho spostato qui le struct in quanto SchedPSJFArgs è utilizzata anche in fake_os.c
 typedef struct {
   int quantum;
   float alpha;
@@ -18,7 +19,6 @@ typedef struct {
 typedef struct {
   ListItem list;
   int pid;
-  int core; //Non necessario in quanto mi basta l'indice dell'array
   ListHead events;
 } FakePCB;
 
@@ -34,7 +34,7 @@ typedef struct FakeOS{
   int timer;
   ScheduleFn schedule_fn; //Si scrive qui la funzione dello scheduling
   void* schedule_args;
-  int has_schedule_sjf;
+  int has_schedule_sjf; //Parametro per verificare se lo scheduler è sjf.
   ListHead processes; //All'interno vi sono tutti i processi. Li carico tutti e poi controllo l'arrival time per crearli ecc
 } FakeOS;
 

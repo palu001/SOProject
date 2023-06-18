@@ -50,8 +50,8 @@ void FakeOS_createProcess(FakeOS* os, FakeProcess* p) {
   new_pcb->list.next=new_pcb->list.prev=0;
   new_pcb->pid=p->pid;
   new_pcb->events=p->events;
-  //Iniziamente a nessun processo è assegnato un core
-  new_pcb->core=-1;
+  
+  
 
   assert(new_pcb->events.first && "process without events");
 
@@ -105,7 +105,7 @@ void FakeOS_simStep(FakeOS* os){
     aux=aux->next;
     ProcessEvent* e=(ProcessEvent*) pcb->events.first;
     //Mostro in quale core è in waiting
-    printf("\twaiting pid: %d in core %d\n", pcb->pid,pcb->core);
+    printf("\twaiting pid: %d\n", pcb->pid);
     assert(e->type==IO);
     e->duration--; 
     printf("\t\tremaining time:%d\n",e->duration);
@@ -142,12 +142,13 @@ void FakeOS_simStep(FakeOS* os){
   // Esecuzione svolta in ogni core
   for (int i = 0; i < os->num_cores; i++) {
     FakePCB* running = os->running[i];
-    printf("\trunning pid: %d in core %d\n", running?running->pid:-1,running?running->core:i);
+    printf("\trunning pid: %d\n", running?running->pid:-1);
     if (running){
       ProcessEvent* e=(ProcessEvent*) running->events.first;
       assert(e->type==CPU);
       e->duration--;
-
+      //Controllo la tipologia di scheduler
+      //Se è SJF allora devo incrementare di 1 il burst effettivo del processo in esecuzione 
       if (os->has_schedule_sjf){
         SchedPSJFArgs* args = (SchedPSJFArgs*)os->schedule_args;
         args->burst_effective[running->pid-1]+=1;
